@@ -1,6 +1,6 @@
 {
   "name": "@alvianzf/squiggly-lines-go-brrr",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Because your website absolutely needed animated squiggly lines. Performance? Never heard of her.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

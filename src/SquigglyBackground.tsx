@@ -659,10 +659,17 @@ const AnimatedLine = ({
           )}
 
       <motion.g
-        // fill-box keeps the spin centred on the emoji rather than on the
-        // SVG origin, which would fling it across the screen.
-        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-        initial={{ opacity: 0 }}
+        // The transform values here are load-bearing, not decoration.
+        // framer-motion only measures an SVG element (and therefore only ever
+        // applies a transform to it) when the initial values already contain a
+        // transform prop. With `initial={{ opacity: 0 }}` alone it silently
+        // drops the transform, and every creature sits at the SVG origin.
+        initial={{
+          opacity: 0,
+          x: samples[0].x,
+          y: samples[0].y,
+          rotate: emojiRotation(variant, samples[0].angle),
+        }}
         animate={{
           x: [...samples.map(sample => sample.x), last.x],
           y: [...samples.map(sample => sample.y), last.y],
@@ -765,11 +772,15 @@ const AnimatedGlyph = ({
   return (
     <motion.text
       {...common}
-      initial={{ opacity: 0 }}
+      // x/y here are the transform, not the x/y attributes in `common` that
+      // place the glyph, so the drift is relative and starts at zero. They also
+      // have to be present in `initial` or framer-motion never measures the
+      // element and throws the transform away entirely.
+      initial={{ opacity: 0, x: 0, y: 0 }}
       animate={{
         opacity: [0, 1, 1, 0],
-        x: [placement.x, placement.x + placement.dx],
-        y: [placement.y, placement.y + placement.dy],
+        x: [0, placement.dx],
+        y: [0, placement.dy],
       }}
       transition={{
         duration,

@@ -67,9 +67,6 @@ describe('emoji orientation', () => {
     const groups = [...container.querySelectorAll('g')];
     expect(groups).toHaveLength(7);
     for (const group of groups) {
-      // fill-box is what keeps the spin centred on the emoji rather than the
-      // SVG origin, which would sling it off-screen.
-      expect(group.style.transformBox).toBe('fill-box');
       expect(group.querySelector('text')?.textContent).toBe('🐜');
     }
   });
