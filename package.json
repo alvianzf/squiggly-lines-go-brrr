@@ -1,0 +1,64 @@
+{
+  "name": "@alvianzf/squiggly-lines-go-brrr",
+  "version": "1.0.0",
+  "description": "Because your website absolutely needed animated squiggly lines. Performance? Never heard of her.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "nextjs",
+    "next.js",
+    "component",
+    "animation",
+    "background",
+    "framer-motion",
+    "animated-background",
+    "animated-lines",
+    "ui",
+    "typescript",
+    "customizable"
+  ],
+  "author": "Alvian Zachry Faturrahman <hello@alvianzf.id>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alvianzf/squiggly-lines-go-brrr"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
+    "framer-motion": "^10.0.0 || ^11.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "framer-motion": "^11.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}
