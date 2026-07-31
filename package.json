@@ -1,6 +1,6 @@
 {
   "name": "@alvianzf/squiggly-lines-go-brrr",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Because your website absolutely needed animated squiggly lines. Performance? Never heard of her.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -17,14 +17,17 @@
       }
     }
   },
+  "sideEffects": false,
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -45,20 +48,28 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alvianzf/squiggly-lines-go-brrr"
+    "url": "git+https://github.com/alvianzf/squiggly-lines-go-brrr.git"
+  },
+  "homepage": "https://github.com/alvianzf/squiggly-lines-go-brrr#readme",
+  "bugs": {
+    "url": "https://github.com/alvianzf/squiggly-lines-go-brrr/issues"
   },
   "peerDependencies": {
+    "framer-motion": "^10.0.0 || ^11.0.0",
     "react": "^18.0.0 || ^19.0.0",
-    "react-dom": "^18.0.0 || ^19.0.0",
-    "framer-motion": "^10.0.0 || ^11.0.0"
+    "react-dom": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "framer-motion": "^11.15.0",
+    "jsdom": "^29.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tsup": "^8.3.5",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
   }
 }

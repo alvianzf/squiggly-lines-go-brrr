@@ -1,7 +1,7 @@
 "use client"; // Because Next.js gets upset if we don't tell it this is client-side. Shocking, I know.
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 
 /**
  * Animation variant types
@@ -147,16 +147,43 @@ const AnimatedLine = ({
   variant: AnimationVariant;
 }) => {
   const [d, setD] = useState('');
+  const prefersReducedMotion = useReducedMotion();
+
+  // These stay put across re-renders. Rolling them in the render body meant a
+  // resize handed every line a new width and duration mid-flight, so the whole
+  // background visibly twitched and restarted every time the window moved.
+  const { strokeWidth, duration, delay, repeatDelay } = useMemo(
+    () => ({
+      strokeWidth: Math.random() * (maxStrokeWidth - minStrokeWidth) + minStrokeWidth,
+      duration: Math.random() * (maxDuration - minDuration) + minDuration,
+      delay: Math.random() * 5,
+      repeatDelay: Math.random() * 2,
+    }),
+    [minStrokeWidth, maxStrokeWidth, minDuration, maxDuration]
+  );
 
   useEffect(() => {
     setD(generatePath(width, height, variant));
-  }, [width, height, id, variant]);
+  }, [width, height, variant]);
 
   if (!d) return null; // SSR safety. Because server-side rendering hates fun.
 
   const randomColor = colors[id % colors.length];
-  const strokeWidth = Math.random() * (maxStrokeWidth - minStrokeWidth) + minStrokeWidth;
-  const duration = Math.random() * (maxDuration - minDuration) + minDuration;
+
+  // Someone asked the OS to calm down. Draw the squiggles, skip the motion.
+  if (prefersReducedMotion) {
+    return (
+      <path
+        d={d}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        className={randomColor}
+        opacity={0.5}
+      />
+    );
+  }
 
   return (
     <motion.path
@@ -176,8 +203,8 @@ const AnimatedLine = ({
         duration,
         repeat: Infinity, // Yes, forever. Your CPU will love this.
         ease: 'easeInOut',
-        delay: Math.random() * 5,
-        repeatDelay: Math.random() * 2,
+        delay,
+        repeatDelay,
       }}
     />
   );
@@ -222,14 +249,30 @@ export default function SquigglyBackground({
     // Check if window exists because SSR is a thing and it gets cranky
     if (typeof window === 'undefined') return;
 
-    setDimensions({ width: window.innerWidth, height: window.innerHeight });
+    // Bail out when nothing actually moved, so a resize that only changes one
+    // axis doesn't re-roll every path for nothing.
+    const measure = () =>
+      setDimensions(prev =>
+        prev.width === window.innerWidth && prev.height === window.innerHeight
+          ? prev
+          : { width: window.innerWidth, height: window.innerHeight }
+      );
 
+    measure();
+
+    // Resize fires dozens of times a second while dragging. Coalescing to one
+    // update per frame keeps us from regenerating every path on each event.
+    let frame = 0;
     const handleResize = () => {
-      setDimensions({ width: window.innerWidth, height: window.innerHeight });
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   return (

@@ -34,6 +34,7 @@ But in all seriousness (just kidding, we're never serious), this is a highly cus
 - ⚛️ **React 18+ & 19**: Modern React with hooks (because class components are so 2018)
 - 🔥 **Next.js Compatible**: Works with App Router and Server Components (we even added `"use client"` for you!)
 - 🌙 **SSR Safe**: Won't explode when `window` doesn't exist
+- ♿ **Respects `prefers-reduced-motion`**: Draws the squiggles, holds the motion
 
 ## 📦 Installation
 
@@ -246,6 +247,18 @@ Some tips:
 - Use semi-transparent colors (`/10`, `/20`, `/30`)
 - Test on actual devices, not just your $3000 MacBook Pro
 - Maybe don't use this on a page that renders 10,000 items in a list
+
+Resizes are coalesced to one update per animation frame, so dragging your window
+around won't regenerate every path on every event.
+
+## ♿ Accessibility
+
+The whole layer is `aria-hidden` and `pointer-events-none`, so it stays out of
+the way of screen readers and clicks.
+
+If the visitor's OS asks for reduced motion, the lines are drawn once and left
+static instead of looping forever. Nothing to configure — it follows the system
+setting via `prefers-reduced-motion`.
 
 ## 🐛 Troubleshooting
 
