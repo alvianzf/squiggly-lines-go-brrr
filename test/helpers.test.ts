@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyDirection, resolveSpeed } from '../src/SquigglyBackground';
+import { applyDirection, emojiRotation, resolveSpeed } from '../src/SquigglyBackground';
 
 describe('resolveSpeed', () => {
   it('passes a positive multiplier straight through', () => {
@@ -49,5 +49,33 @@ describe('applyDirection', () => {
 
   it('leaves the original free-for-all untouched', () => {
     expect(applyDirection(37, -12, 'default')).toEqual({ dx: 37, dy: -12 });
+  });
+});
+
+describe('emojiRotation', () => {
+  it('points the worm straight along its heading', () => {
+    // 🐛 is drawn facing right, which is already heading 0.
+    expect(emojiRotation('worms', 0)).toBe(0);
+    expect(emojiRotation('worms', 90)).toBe(90);
+    expect(emojiRotation('worms', -45)).toBe(-45);
+  });
+
+  it('turns the head-up creatures a quarter turn to match', () => {
+    // 🪲 and 🐜 are drawn from above with their heads at the top, i.e. already
+    // rotated -90, so heading right (0) needs +90 to line them back up.
+    expect(emojiRotation('beetles', 0)).toBe(90);
+    expect(emojiRotation('ants', 0)).toBe(90);
+    expect(emojiRotation('ants', 90)).toBe(180);
+  });
+
+  it('keeps the offset constant, so turning is one-to-one with heading', () => {
+    for (const variant of ['worms', 'beetles', 'ants'] as const) {
+      const delta = emojiRotation(variant, 130) - emojiRotation(variant, 40);
+      expect(delta).toBe(90);
+    }
+  });
+
+  it('leaves thunder unrotated, since it wears no emoji', () => {
+    expect(emojiRotation('thunder', 37)).toBe(37);
   });
 });

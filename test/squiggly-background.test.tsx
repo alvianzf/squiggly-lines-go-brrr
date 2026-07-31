@@ -83,7 +83,7 @@ describe('SquigglyBackground', () => {
     expect(container.firstElementChild?.className).toContain('pointer-events-none');
   });
 
-  it.each(['worms', 'beetles', 'ants', 'thunder'] as const)(
+  it.each(['worms', 'thunder'] as const)(
     'emits a drawable path for the %s variant',
     variant => {
       const { container } = render(<SquigglyBackground count={5} variant={variant} />);

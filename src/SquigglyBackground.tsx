@@ -191,75 +191,183 @@ export const applyDirection = (
 const wobble = (spread: number, direction: ResolvedDirection) =>
   applyDirection((Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread, direction);
 
+type Point = { x: number; y: number };
+
 /**
- * Generates a path based on the selected variant
- * This function is way too complicated for what it does, but hey, that's webdev in 2024
+ * The shape of a route, kept as points rather than a string so we can both
+ * draw it and walk along it. A string would mean parsing our own output back.
  */
-const generatePath = (
+type Geometry =
+  | { kind: 'quad'; points: Point[] }
+  | { kind: 'poly'; points: Point[] };
+
+/** One step along a route: where the creature is, and where it's pointing. */
+export interface PathSample {
+  x: number;
+  y: number;
+  /** Heading in degrees. Screen coordinates, so y grows downward. */
+  angle: number;
+}
+
+/**
+ * Builds the route for a variant
+ * This function is way too complicated for what it does, but hey, that's webdev in 2024
+ *
+ * @internal exported for tests, not part of the public API
+ */
+export const buildGeometry = (
   width: number,
   height: number,
   variant: LineVariant,
   direction: ResolvedDirection
-): string => {
-  const startX = Math.random() * width;
-  const startY = Math.random() * height;
+): Geometry => {
+  const start: Point = { x: Math.random() * width, y: Math.random() * height };
 
   switch (variant) {
     case 'worms': {
       // Smooth, organic curves. Very soothing. Very performance-intensive.
       const cp = wobble(400, direction);
-      const cp1X = startX + cp.dx;
-      const cp1Y = startY + cp.dy;
-      const end = wobble(400, direction);
-      const endX = cp1X + end.dx;
-      const endY = cp1Y + end.dy;
-      return `M ${startX} ${startY} Q ${cp1X} ${cp1Y} ${endX} ${endY}`;
+      const control: Point = { x: start.x + cp.dx, y: start.y + cp.dy };
+      const tail = wobble(400, direction);
+      return {
+        kind: 'quad',
+        points: [start, control, { x: control.x + tail.dx, y: control.y + tail.dy }],
+      };
     }
 
     case 'beetles': {
       // Angular, aggressive paths. For when you're feeling edgy.
       const points = Array.from({ length: 4 }, () => {
         const step = wobble(300, direction);
-        return { x: startX + step.dx, y: startY + step.dy };
+        return { x: start.x + step.dx, y: start.y + step.dy };
       });
-      return `M ${startX} ${startY} ${points.map(p => `L ${p.x} ${p.y}`).join(' ')}`;
+      return { kind: 'poly', points: [start, ...points] };
     }
 
     case 'ants': {
       // Short, rapid segments. Anxiety-inducing or charming? You decide.
-      const segments = Array.from({ length: 6 }, () => {
+      const points = Array.from({ length: 6 }, () => {
         const step = wobble(150, direction);
-        return { x: startX + step.dx, y: startY + step.dy };
+        return { x: start.x + step.dx, y: start.y + step.dy };
       });
-      return `M ${startX} ${startY} ${segments.map(s => `L ${s.x} ${s.y}`).join(' ')}`;
+      return { kind: 'poly', points: [start, ...points] };
     }
 
     case 'thunder': {
       // Sharp, electric zigzags. Zap zap ⚡
       // Thunder is lopsided on purpose: a wide x stride with a shallow y one.
-      const bolt = () => {
-        const stride = applyDirection(
-          (Math.random() - 0.5) * 500,
-          (Math.random() - 0.5) * 100,
-          direction
-        );
-        return stride;
-      };
-      const cp1 = bolt();
-      const cp1X = startX + cp1.dx;
-      const cp1Y = startY + cp1.dy;
-      const cp2 = bolt();
-      const cp2X = cp1X + cp2.dx;
-      const cp2Y = cp1Y + cp2.dy;
+      const bolt = () =>
+        applyDirection((Math.random() - 0.5) * 500, (Math.random() - 0.5) * 100, direction);
+
+      const first = bolt();
+      const cp1: Point = { x: start.x + first.dx, y: start.y + first.dy };
+      const second = bolt();
+      const cp2: Point = { x: cp1.x + second.dx, y: cp1.y + second.dy };
       const tail = wobble(300, direction);
-      const endX = cp2X + tail.dx;
-      const endY = cp2Y + tail.dy;
-      return `M ${startX} ${startY} L ${cp1X} ${cp1Y} L ${cp2X} ${cp2Y} L ${endX} ${endY}`;
+      return {
+        kind: 'poly',
+        points: [start, cp1, cp2, { x: cp2.x + tail.dx, y: cp2.y + tail.dy }],
+      };
     }
 
     default:
-      return ''; // TypeScript made us do this even though it's impossible to reach
+      return { kind: 'poly', points: [start] }; // Unreachable, but TypeScript worries.
   }
+};
+
+/** Turns a route back into the `d` attribute the SVG actually wants. */
+const toPathData = ({ kind, points }: Geometry): string => {
+  const [first, ...rest] = points;
+  if (!first) return '';
+  if (kind === 'quad' && rest.length === 2) {
+    return `M ${first.x} ${first.y} Q ${rest[0].x} ${rest[0].y} ${rest[1].x} ${rest[1].y}`;
+  }
+  return `M ${first.x} ${first.y} ${rest.map(p => `L ${p.x} ${p.y}`).join(' ')}`;
+};
+
+const toDegrees = (radians: number) => (radians * 180) / Math.PI;
+
+/**
+ * Stops the emoji spinning like a lawn sprinkler.
+ *
+ * Angles come out of atan2 wrapped to (-180, 180], so a heading crossing that
+ * seam reads as a ~360 degree jump and framer-motion dutifully animates the
+ * long way round. Nudging each angle to stay within a half turn of the
+ * previous one keeps the rotation continuous.
+ *
+ * @internal exported for tests, not part of the public API
+ */
+export const unwrapAngles = (angles: number[]): number[] => {
+  const result: number[] = [];
+  for (const [index, angle] of angles.entries()) {
+    if (index === 0) {
+      result.push(angle);
+      continue;
+    }
+    const previous = result[index - 1];
+    result.push(angle + Math.round((previous - angle) / 360) * 360);
+  }
+  return result;
+};
+
+/** Position and heading at `t` (0..1) along a quadratic Bezier. */
+const sampleQuad = (points: Point[], t: number): PathSample => {
+  const [p0, p1, p2] = points;
+  const inverse = 1 - t;
+  return {
+    x: inverse * inverse * p0.x + 2 * inverse * t * p1.x + t * t * p2.x,
+    y: inverse * inverse * p0.y + 2 * inverse * t * p1.y + t * t * p2.y,
+    // Derivative of the curve gives the tangent, which is the heading.
+    angle: toDegrees(
+      Math.atan2(
+        2 * inverse * (p1.y - p0.y) + 2 * t * (p2.y - p1.y),
+        2 * inverse * (p1.x - p0.x) + 2 * t * (p2.x - p1.x)
+      )
+    ),
+  };
+};
+
+/** Position and heading at `t` (0..1) along a polyline, walking by length. */
+const samplePolyline = (points: Point[], t: number): PathSample => {
+  const lengths = points
+    .slice(1)
+    .map((point, index) => Math.hypot(point.x - points[index].x, point.y - points[index].y));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+
+  // A degenerate route (every point identical) has no direction to speak of.
+  if (total === 0) return { x: points[0].x, y: points[0].y, angle: 0 };
+
+  let remaining = t * total;
+  for (const [index, length] of lengths.entries()) {
+    if (remaining <= length || index === lengths.length - 1) {
+      const from = points[index];
+      const to = points[index + 1];
+      const fraction = length === 0 ? 0 : Math.min(remaining / length, 1);
+      return {
+        x: from.x + (to.x - from.x) * fraction,
+        y: from.y + (to.y - from.y) * fraction,
+        angle: toDegrees(Math.atan2(to.y - from.y, to.x - from.x)),
+      };
+    }
+    remaining -= length;
+  }
+
+  return { x: points[0].x, y: points[0].y, angle: 0 };
+};
+
+/**
+ * Walks a route and returns evenly spaced steps along it.
+ *
+ * @internal exported for tests, not part of the public API
+ */
+export const sampleGeometry = (geometry: Geometry, count: number): PathSample[] => {
+  const sampleAt = geometry.kind === 'quad' ? sampleQuad : samplePolyline;
+  const samples = Array.from({ length: count }, (_, index) =>
+    sampleAt(geometry.points, count === 1 ? 0 : index / (count - 1))
+  );
+
+  const unwrapped = unwrapAngles(samples.map(sample => sample.angle));
+  return samples.map((sample, index) => ({ ...sample, angle: unwrapped[index] }));
 };
 
 /**
@@ -282,6 +390,82 @@ const resolvePaint = (colors: string[] | 'random', id: number) =>
   colors === 'random'
     ? { className: undefined, color: randomColor() }
     : { className: colors[id % colors.length], color: 'currentColor' };
+
+/** The variants that are actual bugs, as opposed to a lightning bolt. */
+type CreatureVariant = Exclude<LineVariant, 'thunder'>;
+
+const isCreatureVariant = (variant: LineVariant): variant is CreatureVariant =>
+  variant !== 'thunder';
+
+const CREATURE_EMOJI: Record<CreatureVariant, string> = {
+  worms: '🐛',
+  beetles: '🪲',
+  ants: '🐜',
+};
+
+/**
+ * Emoji don't agree on which way is forward, so each one needs a nudge before
+ * we point it along its heading.
+ *
+ * A heading of 0 degrees means "travelling right". The caterpillar is drawn
+ * facing right already, so it needs nothing. The beetle and ant are drawn from
+ * above with their heads at the top, i.e. already rotated -90, so they need
+ * +90 to line back up. Artwork varies between platforms, so treat these as a
+ * good default rather than gospel.
+ */
+const EMOJI_HEADING_OFFSET: Record<CreatureVariant, number> = {
+  worms: 0,
+  beetles: 90,
+  ants: 90,
+};
+
+/** What each creature leaves behind it. */
+const TRAIL_KIND: Record<CreatureVariant, 'line' | 'dots'> = {
+  worms: 'line',
+  beetles: 'dots',
+  ants: 'dots',
+};
+
+/** Steps sampled per route. Enough for smooth turning without silly array sizes. */
+const SAMPLE_COUNT = 24;
+
+/** Every Nth sample becomes a breadcrumb, so dotted trails stay affordable. */
+const DOT_STRIDE = 2;
+
+/** Fraction of the cycle spent crawling; the rest is the fade out. */
+const TRAVEL = 0.6;
+
+/**
+ * Which emoji a creature wears. Fixed by variant: ask for ants, get ants.
+ * Thunder never gets one — it is weather, not wildlife.
+ */
+const resolveEmoji = (variant: LineVariant): string | null =>
+  isCreatureVariant(variant) ? CREATURE_EMOJI[variant] : null;
+
+/**
+ * The rotation that points a creature along `angle`, once its artwork's own
+ * idea of "forward" is accounted for.
+ *
+ * @internal exported for tests, not part of the public API
+ */
+export const emojiRotation = (variant: LineVariant, angle: number): number =>
+  angle + (isCreatureVariant(variant) ? EMOJI_HEADING_OFFSET[variant] : 0);
+
+/** A route plus the steps along it. */
+interface Crawl {
+  d: string;
+  samples: PathSample[];
+}
+
+const generateCrawl = (
+  width: number,
+  height: number,
+  variant: LineVariant,
+  direction: ResolvedDirection
+): Crawl => {
+  const geometry = buildGeometry(width, height, variant, direction);
+  return { d: toPathData(geometry), samples: sampleGeometry(geometry, SAMPLE_COUNT) };
+};
 
 /**
  * Individual animated line component
@@ -312,19 +496,20 @@ const AnimatedLine = ({
   direction: Direction;
   speed: number | SpeedPreset;
 }) => {
-  const [d, setD] = useState('');
+  const [crawl, setCrawl] = useState<Crawl | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
   // These stay put across re-renders. Rolling them in the render body meant a
   // resize handed every line a new width and duration mid-flight, so the whole
   // background visibly twitched and restarted every time the window moved.
-  const { strokeWidth, duration, delay, repeatDelay } = useMemo(
+  const { strokeWidth, duration, delay, repeatDelay, emojiSize } = useMemo(
     () => ({
       strokeWidth: Math.random() * (maxStrokeWidth - minStrokeWidth) + minStrokeWidth,
       duration:
         (Math.random() * (maxDuration - minDuration) + minDuration) / resolveSpeed(speed),
       delay: Math.random() * 5,
       repeatDelay: Math.random() * 2,
+      emojiSize: 16 + Math.random() * 12,
     }),
     [minStrokeWidth, maxStrokeWidth, minDuration, maxDuration, speed]
   );
@@ -336,48 +521,164 @@ const AnimatedLine = ({
   const paint = useMemo(() => resolvePaint(colors, id), [colors, id]);
 
   useEffect(() => {
-    setD(generatePath(width, height, variant, resolvedDirection));
+    setCrawl(generateCrawl(width, height, variant, resolvedDirection));
   }, [width, height, variant, resolvedDirection]);
 
-  if (!d) return null; // SSR safety. Because server-side rendering hates fun.
+  if (!crawl) return null; // SSR safety. Because server-side rendering hates fun.
+
+  const { d, samples } = crawl;
+  const glyph = resolveEmoji(variant);
+  const trail = glyph && isCreatureVariant(variant) ? TRAIL_KIND[variant] : 'line';
+  const last = samples[samples.length - 1];
+
+  // Breadcrumbs for the variants that leave dots instead of a line.
+  const dots = samples.filter((_, index) => index % DOT_STRIDE === 0);
+
+  // The creature walks the route over the first TRAVEL of the cycle, then the
+  // whole thing fades. Sharing one duration and one `times` scale is what keeps
+  // the emoji glued to the end of its own trail.
+  const travelTimes = samples.map((_, index) =>
+    samples.length === 1 ? 0 : (index / (samples.length - 1)) * TRAVEL
+  );
 
   // Someone asked the OS to calm down. Draw the squiggles, skip the motion.
   if (prefersReducedMotion) {
     return (
-      <path
+      <>
+        {trail === 'dots' ? (
+          dots.map((sample, index) => (
+            <circle
+              key={index}
+              cx={sample.x}
+              cy={sample.y}
+              r={strokeWidth}
+              fill={paint.color}
+              className={paint.className}
+              opacity={0.5}
+            />
+          ))
+        ) : (
+          <path
+            d={d}
+            fill="none"
+            stroke={paint.color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            className={paint.className}
+            opacity={0.5}
+          />
+        )}
+        {glyph && (
+          // Parked at the end of the route, still facing the way it was going.
+          <g
+            transform={`translate(${last.x} ${last.y}) rotate(${emojiRotation(variant, last.angle)})`}
+          >
+            <text
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={emojiSize}
+              opacity={0.5}
+            >
+              {glyph}
+            </text>
+          </g>
+        )}
+      </>
+    );
+  }
+
+  // No emoji means no creature, so keep the original line animation exactly.
+  if (!glyph) {
+    return (
+      <motion.path
         d={d}
         fill="none"
         stroke={paint.color}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         className={paint.className}
-        opacity={0.5}
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{
+          pathLength: [0, 1, 1, 0], // Draw it, admire it, delete it. The circle of life.
+          opacity: [0, 1, 0, 0],
+          pathOffset: [0, 0, 1, 0],
+        }}
+        transition={{
+          duration,
+          repeat: Infinity, // Yes, forever. Your CPU will love this.
+          ease: 'easeInOut',
+          delay,
+          repeatDelay,
+        }}
       />
     );
   }
 
+  // Everything below shares one duration and one `times` scale, and rides a
+  // linear ease. That's what keeps the emoji pinned to the end of its own
+  // trail instead of drifting ahead of it or lagging behind.
+  const cycle = { duration, repeat: Infinity, delay, repeatDelay, ease: 'linear' as const };
+
   return (
-    <motion.path
-      d={d}
-      fill="none"
-      stroke={paint.color}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      className={paint.className}
-      initial={{ pathLength: 0, opacity: 0 }}
-      animate={{
-        pathLength: [0, 1, 1, 0], // Draw it, admire it, delete it. The circle of life.
-        opacity: [0, 1, 0, 0],
-        pathOffset: [0, 0, 1, 0],
-      }}
-      transition={{
-        duration,
-        repeat: Infinity, // Yes, forever. Your CPU will love this.
-        ease: 'easeInOut',
-        delay,
-        repeatDelay,
-      }}
-    />
+    <>
+      {trail === 'dots'
+        ? dots.map((sample, index) => {
+            const fraction = dots.length === 1 ? 0 : index / (dots.length - 1);
+            // Each breadcrumb blinks on as the creature reaches it.
+            const appearAt = Math.max(fraction * TRAVEL, 0.01);
+            return (
+              <motion.circle
+                key={index}
+                cx={sample.x}
+                cy={sample.y}
+                r={strokeWidth}
+                fill={paint.color}
+                className={paint.className}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0, 1, 0] }}
+                transition={{
+                  ...cycle,
+                  times: [0, appearAt, Math.min(appearAt + 0.04, 0.99), 1],
+                }}
+              />
+            );
+          })
+        : (
+            <motion.path
+              d={d}
+              fill="none"
+              stroke={paint.color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              className={paint.className}
+              initial={{ pathLength: 0, opacity: 0 }}
+              // Drawn in step with the crawl, so the line is the slime trail.
+              animate={{ pathLength: [0, 1, 1], opacity: [1, 1, 0] }}
+              transition={{ ...cycle, times: [0, TRAVEL, 1] }}
+            />
+          )}
+
+      <motion.g
+        // fill-box keeps the spin centred on the emoji rather than on the
+        // SVG origin, which would fling it across the screen.
+        style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+        initial={{ opacity: 0 }}
+        animate={{
+          x: [...samples.map(sample => sample.x), last.x],
+          y: [...samples.map(sample => sample.y), last.y],
+          rotate: [
+            ...samples.map(sample => emojiRotation(variant, sample.angle)),
+            emojiRotation(variant, last.angle),
+          ],
+          opacity: [...samples.map((_, index) => (index === 0 ? 0 : 1)), 0],
+        }}
+        transition={{ ...cycle, times: [...travelTimes, 1] }}
+      >
+        <text textAnchor="middle" dominantBaseline="central" fontSize={emojiSize}>
+          {glyph}
+        </text>
+      </motion.g>
+    </>
   );
 };
 

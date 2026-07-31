@@ -27,6 +27,8 @@ But in all seriousness (just kidding, we're never serious), this is a highly cus
 ## ✨ Features
 
 - 🐛 **Seven Variants**: Worms, Beetles, Ants, Thunder, plus Letters, Numbers and Alphanumeric
+- 🪲 **Actual Bugs**: Worms, beetles and ants crawl along their routes as emoji, turned to face wherever they're heading
+- 👣 **Trails**: Worms leave a line behind them, beetles and ants leave a trail of dots
 - 🧭 **Direction Control**: Horizontal, vertical, diagonal, random, or the original free-for-all
 - 🎨 **Customizable Colors**: Bring your own Tailwind classes, or pass `colors="random"` and bring nothing
 - 🏃 **Speed Control**: A multiplier or a preset, from `slow` all the way to `ludicrous`
@@ -39,6 +41,28 @@ But in all seriousness (just kidding, we're never serious), this is a highly cus
 - ♿ **Respects `prefers-reduced-motion`**: Draws the squiggles, holds the motion
 
 ## 🆕 What's New
+
+### 2.0.0
+
+**The bugs are real now.** `worms`, `beetles` and `ants` no longer draw a bare
+line — each one sends an actual emoji crawling along the route:
+
+| Variant | Creature | Leaves behind |
+|---------|----------|---------------|
+| `worms` | 🐛 | A line, drawn in step with the crawl |
+| `beetles` | 🪲 | A trail of dots |
+| `ants` | 🐜 | A trail of dots |
+
+The emoji is **fixed by variant and not configurable** — ask for `ants`, get ants.
+It rotates continuously so it always faces the direction it's travelling, using
+the tangent of its own path, and it stays glued to the end of its own trail.
+
+`thunder` is untouched (weather, not wildlife), and the glyph variants already
+draw their own characters.
+
+**Why the major bump:** no props were removed or renamed, but three variants look
+materially different than they did in 1.x. Nothing to migrate — if you were using
+`worms`, you now get worms that wriggle.
 
 ### 1.2.0
 
@@ -255,10 +279,14 @@ The `"use client"` directive is already included. We're not monsters.
 
 ### Variants Explained
 
-- **worms** 🐛: Smooth, organic curves. The original. The classic. The "I saw this on Dribbble" special.
-- **beetles** 🪲: Sharp, angular paths. For when you want your background to have _edge_.
-- **ants** 🐜: Short, frantic segments. Anxiety-inducing or charming? You decide!
-- **thunder** ⚡: Sharp zigzags. Embrace your inner Zeus. Zap zap!
+- **worms** 🐛: Smooth, organic curves. A caterpillar wriggles along each one, leaving the line behind it like a slime trail.
+- **beetles** 🪲: Sharp, angular paths. A beetle marches the route and drops a trail of dots.
+- **ants** 🐜: Short, frantic segments. An ant scurries through, dotting as it goes.
+- **thunder** ⚡: Sharp zigzags. Embrace your inner Zeus. Zap zap! No creature — lightning is weather, not wildlife.
+
+Each creature is rotated to face the direction it's heading, so they always look
+like they're going somewhere. The emoji is decided by the variant and can't be
+swapped out: pick `ants`, get 🐜.
 - **letters** 🔤: Random drifting letters. Looks like your app is thinking very hard.
 - **numbers** 🔢: Random drifting digits. Instant "we do data" energy.
 - **alphanumeric** 🔣: Both at once, for maximum unexplained.
@@ -344,6 +372,11 @@ Some tips:
 
 Resizes are coalesced to one update per animation frame, so dragging your window
 around won't regenerate every path on every event.
+
+One caveat since 2.0.0: `beetles` and `ants` draw their trail as individual dots,
+so they render roughly a dozen small elements per creature instead of one path.
+At the default `count` of 50 that's fine; if you crank it to 300 you will feel it.
+`worms` and `thunder` are still one path each.
 
 ## ♿ Accessibility
 

@@ -48,8 +48,16 @@ describe('direction', () => {
         const { container, unmount } = render(
           <SquigglyBackground count={4} direction={direction} variant={variant} />
         );
-        for (const path of container.querySelectorAll('path')) {
-          expect(path.getAttribute('d')).toMatch(/^M [\d.-]+ [\d.-]+ [QL] /);
+        // Beetles and ants leave dots; worms and thunder leave a stroked path.
+        const dotted = variant === 'beetles' || variant === 'ants';
+        if (dotted) {
+          expect(container.querySelectorAll('circle').length).toBeGreaterThan(0);
+        } else {
+          const paths = [...container.querySelectorAll('path')];
+          expect(paths).toHaveLength(4); // Guard against the loop below passing vacuously.
+          for (const path of paths) {
+            expect(path.getAttribute('d')).toMatch(/^M [\d.-]+ [\d.-]+ [QL] /);
+          }
         }
         unmount();
       }
