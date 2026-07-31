@@ -26,8 +26,10 @@ But in all seriousness (just kidding, we're never serious), this is a highly cus
 
 ## ✨ Features
 
-- 🐛 **Four Variants**: Worms, Beetles, Ants, and Thunder (yes, really)
-- 🎨 **Customizable Colors**: Bring your own Tailwind classes (you DO have Tailwind, right?)
+- 🐛 **Seven Variants**: Worms, Beetles, Ants, Thunder, plus Letters, Numbers and Alphanumeric
+- 🧭 **Direction Control**: Horizontal, vertical, diagonal, random, or the original free-for-all
+- 🎨 **Customizable Colors**: Bring your own Tailwind classes, or pass `colors="random"` and bring nothing
+- 🏃 **Speed Control**: A multiplier or a preset, from `slow` all the way to `ludicrous`
 - 📏 **Adjustable Thickness**: From "barely there" to "THICC boi"
 - ⚡ **Speed Control**: Fast like your burnout or slow like your CI/CD pipeline
 - 🎯 **TypeScript**: Fully typed because we're not animals
@@ -35,6 +37,32 @@ But in all seriousness (just kidding, we're never serious), this is a highly cus
 - 🔥 **Next.js Compatible**: Works with App Router and Server Components (we even added `"use client"` for you!)
 - 🌙 **SSR Safe**: Won't explode when `window` doesn't exist
 - ♿ **Respects `prefers-reduced-motion`**: Draws the squiggles, holds the motion
+
+## 🆕 What's New
+
+### 1.2.0
+
+- **Glyph variants**: `letters`, `numbers` and `alphanumeric` scatter random
+  drifting characters instead of lines. Same props, same behaviour, fewer squiggles.
+- **`direction` prop**: point everything `horizontal`, `vertical`, `diagonal`,
+  `random`, or leave it `default` for the original untamed version.
+- **`speed` prop**: a multiplier (`speed={2}`) or a preset (`speed="ludicrous"`),
+  layered on top of `minDuration`/`maxDuration` rather than replacing them.
+- **`colors="random"`**: skip the palette entirely and let each line roll its own
+  hue. Works without Tailwind, since the color is written to the element directly.
+
+All additive — every existing prop keeps its current default and behaviour.
+
+### 1.1.x
+
+- **Respects `prefers-reduced-motion`**: lines are drawn once and held static when
+  the OS asks for reduced motion.
+- **Fixed resize churn**: stroke width and duration were re-rolled on every render,
+  so resizing the window made the whole background twitch and restart. They're now
+  stable, and resize events are coalesced to one update per animation frame.
+- **Restored the `"use client"` directive** in the published build. It was stripped
+  from `1.0.0`, which broke Next.js App Router consumers.
+- Shipped the missing `LICENSE` file and added `sideEffects: false`.
 
 ## 📦 Installation
 
@@ -163,12 +191,28 @@ function App() {
         maxStrokeWidth={4}
         minDuration={3}
         maxDuration={8}
+        direction="diagonal"
+        speed="fast"
         backgroundColor="#0a0a0a"
       />
       {/* Your content, now with 300% more pizzazz */}
     </div>
   );
 }
+```
+
+### Glyph Mode (No Tailwind Required)
+
+Drifting digits, moving sideways, with colors picked for you:
+
+```tsx
+<SquigglyBackground
+  variant="numbers"
+  direction="horizontal"
+  speed="fast"
+  colors="random"
+  count={60}
+/>
 ```
 
 ### Next.js App Router Usage
@@ -197,9 +241,11 @@ The `"use client"` directive is already included. We're not monsters.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `variant` | `'worms' \| 'beetles' \| 'ants' \| 'thunder'` | `'worms'` | Choose your animation style. Each one is equally extra. |
-| `count` | `number` | `50` | How many lines to render. More = prettier. More = slower. Choose wisely. |
-| `colors` | `string[]` | `['text-red-500/20', 'text-slate-400/30']` | Array of CSS color class names. Tailwind classes work great, but any classes that set `color` CSS property will work. The component uses `stroke="currentColor"`. |
+| `variant` | `'worms' \| 'beetles' \| 'ants' \| 'thunder' \| 'letters' \| 'numbers' \| 'alphanumeric'` | `'worms'` | Choose your animation style. Each one is equally extra. |
+| `count` | `number` | `50` | How many lines (or glyphs) to render. More = prettier. More = slower. Choose wisely. |
+| `colors` | `string[] \| 'random'` | `['text-red-500/20', 'text-slate-400/30']` | Array of CSS color class names. Tailwind classes work great, but any classes that set `color` CSS property will work. The component uses `stroke="currentColor"`. Pass `'random'` to have every line roll its own hue instead — no Tailwind needed. |
+| `direction` | `'horizontal' \| 'vertical' \| 'diagonal' \| 'random' \| 'default'` | `'default'` | Which way the chaos travels. Applies to lines and to glyph drift. |
+| `speed` | `number \| 'slow' \| 'normal' \| 'fast' \| 'ludicrous'` | `1` | Multiplier layered on the durations. `2` is twice as fast, `0.5` is half. Presets work too. |
 | `minStrokeWidth` | `number` | `1` | Minimum line thickness in pixels. For the subtle among us. |
 | `maxStrokeWidth` | `number` | `3` | Maximum line thickness in pixels. For the bold and brash. |
 | `minDuration` | `number` | `5` | Minimum animation duration in seconds. Lower = more frantic. |
@@ -213,6 +259,47 @@ The `"use client"` directive is already included. We're not monsters.
 - **beetles** 🪲: Sharp, angular paths. For when you want your background to have _edge_.
 - **ants** 🐜: Short, frantic segments. Anxiety-inducing or charming? You decide!
 - **thunder** ⚡: Sharp zigzags. Embrace your inner Zeus. Zap zap!
+- **letters** 🔤: Random drifting letters. Looks like your app is thinking very hard.
+- **numbers** 🔢: Random drifting digits. Instant "we do data" energy.
+- **alphanumeric** 🔣: Both at once, for maximum unexplained.
+
+### Direction
+
+Every variant can be pointed somewhere. The glyph variants drift the same way.
+
+```tsx
+<SquigglyBackground direction="horizontal" />  // wide and flat
+<SquigglyBackground direction="vertical" />    // tall and narrow
+<SquigglyBackground direction="diagonal" />    // 45 degrees, all four ways
+<SquigglyBackground direction="random" />      // each line picks its own
+<SquigglyBackground direction="default" />     // the original free-for-all
+```
+
+### Speed
+
+`speed` sits on top of `minDuration`/`maxDuration` rather than replacing them, so
+your existing duration settings still apply — they just get divided by the multiplier.
+
+```tsx
+<SquigglyBackground speed={2} />             // twice as fast
+<SquigglyBackground speed={0.5} />           // half speed
+<SquigglyBackground speed="ludicrous" />     // 6x, may cause motion sickness
+```
+
+Presets: `slow` (0.5x), `normal` (1x), `fast` (2.5x), `ludicrous` (6x). Zero,
+negative, and nonsense values fall back to `1` instead of breaking the animation.
+
+### Random Colors
+
+Don't want to pick a palette? Don't.
+
+```tsx
+<SquigglyBackground colors="random" />
+```
+
+Every line gets its own translucent hue, re-rolled on each mount. This writes the
+color straight to the element, so it works **without Tailwind** and ignores the
+`content` config below entirely.
 
 ## 🎨 Tailwind Setup
 
@@ -235,7 +322,14 @@ Otherwise, your colors won't work and you'll be sad. We'll be sad too. Everyone 
 Fully typed because we're professionals (citation needed). Import the types if you need them:
 
 ```tsx
-import type { SquigglyBackgroundProps, AnimationVariant } from '@alvianzf/squiggly-lines-go-brrr';
+import type {
+  SquigglyBackgroundProps,
+  AnimationVariant,
+  LineVariant,
+  GlyphVariant,
+  Direction,
+  SpeedPreset,
+} from '@alvianzf/squiggly-lines-go-brrr';
 ```
 
 ## ⚡ Performance
